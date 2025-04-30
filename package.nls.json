@@ -1,0 +1,13 @@
+{
+  "recentFiles": "Recent Modified Files",
+  "compressSettings": "Compress Settings",
+  "compress.ignore": "Ignore files and directories to compress. Use regex.",
+  "compress.refreshRecentFiles": "Refresh Recent Files",
+  "compress.compressDirectory": "Compress Current Directory",
+  "compress.compressSelectedItems": "Compress Selected Items",
+  "compress.completed": "Compression completed. {0} size: {1} bytes",
+  "compress.error": "Compression error: {0}",
+  "compress.openFolder": "Open Folder",
+  "compress.openSettings": "Open Compress Settings",
+  "viewsWelcome.noRecentFiles": "No recent files found. Open a workspace to see recent files."
+}

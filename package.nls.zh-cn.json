@@ -1,0 +1,13 @@
+{
+    "recentFiles": "最近修改的文件",
+    "compressSettings": "压缩设置",
+    "compress.ignore": "忽略需要压缩的文件和目录。支持正则表达式。",
+    "compress.refreshRecentFiles": "刷新最近的文件",
+    "compress.compressDirectory": "压缩当前目录",
+    "compress.compressSelectedItems": "压缩选定的项目",
+    "compress.completed": "压缩完成。{0} 大小：{1}",
+    "compress.error": "压缩错误：{0}",
+    "compress.openFolder": "打开文件夹",
+    "compress.openSettings": "打开压缩设置",
+    "viewsWelcome.noRecentFiles": "未找到最近的文件。打开工作区以查看最近的文件。"
+}

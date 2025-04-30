@@ -1,15 +1,27 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-// 修改导入方式，使用默认导入
 const archiver = require('archiver');
+const { init, localize } = require("vscode-nls-i18n");
 
 class RecentFilesTreeDataProvider implements vscode.TreeDataProvider<vscode.Uri> {
 	private _onDidChangeTreeData: vscode.EventEmitter<vscode.Uri | undefined | null | void> = new vscode.EventEmitter<vscode.Uri | undefined | null | void>();
 	readonly onDidChangeTreeData: vscode.Event<vscode.Uri | undefined | null | void> = this._onDidChangeTreeData.event;
 
+	private refreshTimeout: NodeJS.Timeout | undefined;
+
 	refresh(): void {
 		this._onDidChangeTreeData.fire();
+	}
+
+	// 添加节流刷新方法
+	throttledRefresh(): void {
+		if (this.refreshTimeout) {
+			clearTimeout(this.refreshTimeout);
+		}
+		this.refreshTimeout = setTimeout(() => {
+			this.refresh();
+		}, 1000); // 1 秒节流
 	}
 
 	async getTreeItem(element: vscode.Uri): Promise<vscode.TreeItem> {
@@ -29,10 +41,7 @@ class RecentFilesTreeDataProvider implements vscode.TreeDataProvider<vscode.Uri>
 			const today = new Date();
 			if (mtime.toDateString() === today.toDateString()) {
 				treeItem.description = ` \u21BB ${mtime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
-			} 
-			// else {
-			// 	treeItem.description = mtime.toISOString().split('T')[0];
-			// }
+			}
 		} catch (error) {
 			console.error(`Error getting file stats for ${element.fsPath}:`, error);
 		}
@@ -44,18 +53,31 @@ class RecentFilesTreeDataProvider implements vscode.TreeDataProvider<vscode.Uri>
 		if (!vscode.workspace.workspaceFolders) {
 			return [];
 		}
+
+		// 获取 compress.m01.ignore 配置
+		const config = vscode.workspace.getConfiguration('compress');
+		const ignorePattern = config.get<string>('m01.ignore', '');
+		const regex = ignorePattern ? new RegExp(ignorePattern) : null;
+
 		const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
-		const files = await this.getFilesRecursively(workspaceRoot);
+		const files = await this.getFilesRecursively(workspaceRoot, regex); // 传递正则表达式
 		const fileStats = await Promise.all(files.map(file => this.getFileStat(file)));
 		const sortedFiles = fileStats.sort((a, b) => b.mtimeMs - a.mtimeMs).map(stat => vscode.Uri.file(stat.path));
 		return sortedFiles;
 	}
 
-	private async getFilesRecursively(dir: string): Promise<string[]> {
+	private async getFilesRecursively(dir: string, regex: RegExp | null): Promise<string[]> {
 		const entries = await fs.promises.readdir(dir, { withFileTypes: true });
 		const files = await Promise.all(entries.map(entry => {
 			const fullPath = path.join(dir, entry.name);
-			return entry.isDirectory() ? this.getFilesRecursively(fullPath) : [fullPath];
+
+			// 忽略符合正则规则的文件或目录
+			if (regex && regex.test(entry.name)) {
+				console.log(`Ignoring file or directory: ${entry.name}`);
+				return [];
+			}
+
+			return entry.isDirectory() ? this.getFilesRecursively(fullPath, regex) : [fullPath];
 		}));
 		return files.flat();
 	}
@@ -66,86 +88,139 @@ class RecentFilesTreeDataProvider implements vscode.TreeDataProvider<vscode.Uri>
 	}
 }
 
-async function compressDirectory(workspaceRoot: string) {
-    // 获取当前工作目录名称作为压缩文件名
-    const directoryName = path.basename(workspaceRoot);
-    const outputPath = path.join(workspaceRoot, `${directoryName}.zip`);
-    const output = fs.createWriteStream(outputPath);
+async function compressSelectedItems(selectedItems: vscode.Uri[], workspaceRoot: string) {
+	const timestamp = new Date().toLocaleString(undefined, {
+		hour: '2-digit',
+		minute: '2-digit',
+		second: '2-digit',
+		hour12: false
+	}).replace(/[/,:]/g, '').replace(/[ ]/g, '_');
+	const directoryName = path.basename(workspaceRoot);
+	const outputPath = path.join(workspaceRoot, `${directoryName}_${timestamp}.zip`);
+	const output = fs.createWriteStream(outputPath);
 
-    // 使用默认导入的 archiver 创建实例
-    const archive = archiver('zip', {
-        zlib: { level: 9 }
-    });
+	const archive = archiver('zip', {
+		zlib: { level: 9 }
+	});
 
-    output.on('close', () => {
-        vscode.window.showInformationMessage(`Compression completed. Archive size: ${archive.pointer()} bytes`);
-    });
+	output.on('close', () => {
+		const sizeInBytes = archive.pointer();
+		let sizeString =getSizeString(sizeInBytes);
+		vscode.window.showInformationMessage(
+			localize('compress.completed', outputPath, sizeString),
+			localize('compress.openFolder', 'Open Folder')
+		).then(selection => {
+			if (selection === localize('compress.openFolder', 'Open Folder')) {
+				vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(outputPath));
+			}
+		});
+	});
 
-    archive.on('error', (err: any) => {
-        vscode.window.showErrorMessage(`Compression error: ${err.message}`);
-    });
+	archive.on('error', (err: any) => {
+		vscode.window.showErrorMessage(localize('compress.error', err.message));
+	});
 
-    archive.pipe(output);
+	archive.pipe(output);
 
-    // 递归添加文件到压缩包，忽略 .zip 文件
-    async function addFilesToArchive(dir: string) {
-        const entries = await fs.promises.readdir(dir, { withFileTypes: true });
-        for (const entry of entries) {
-            const fullPath = path.join(dir, entry.name);
-            if (entry.isDirectory()) {
-                await addFilesToArchive(fullPath); // 递归处理子目录
-            } else if (!entry.name.endsWith('.zip')) {
-                archive.file(fullPath, { name: path.relative(workspaceRoot, fullPath) });
-            }
-        }
-    }
+	for (const item of selectedItems) {
+		const relativePath = path.relative(workspaceRoot, item.fsPath);
+		const stat = await fs.promises.stat(item.fsPath);
+		if (stat.isDirectory()) {
+			archive.directory(item.fsPath, relativePath);
+		} else {
+			archive.file(item.fsPath, { name: relativePath });
+		}
+	}
 
-    await addFilesToArchive(workspaceRoot); // 开始添加文件
-    await archive.finalize(); // 完成压缩
+	await archive.finalize();
+}
+function getSizeString(sizeInBytes: number): string {
+	let sizeString;
+	if (sizeInBytes >= 1e9) {
+		sizeString = (sizeInBytes / 1e9).toFixed(2) + ' GB';
+	} else if (sizeInBytes >= 1e6) {
+		sizeString = (sizeInBytes / 1e6).toFixed(2) + ' MB';
+	} else if (sizeInBytes >= 1e3) {
+		sizeString = (sizeInBytes / 1e3).toFixed(2) + ' KB';
+	} else {
+		sizeString = sizeInBytes + ' B';
+	}
+	return sizeString;
 }
 
-async function compressSelectedItems(selectedItems: vscode.Uri[], workspaceRoot: string) {
-    // 获取压缩文件名
-    const outputPath = path.join(workspaceRoot, `selected-items.zip`);
-    const output = fs.createWriteStream(outputPath);
+async function compressDirectoryWithIgnore(workspaceRoot: string) {
+	const config = vscode.workspace.getConfiguration('compress');
+	const ignorePattern = config.get<string>('m01.ignore', '');
+	const regex = ignorePattern ? new RegExp(ignorePattern) : null;
 
-    // 使用 archiver 创建实例
-    const archive = archiver('zip', {
-        zlib: { level: 9 }
-    });
+	const directoryName = path.basename(workspaceRoot);
+	const timestamp = new Date().toLocaleString(undefined, {
+		hour: '2-digit',
+		minute: '2-digit',
+		second: '2-digit',
+		hour12: false
+	}).replace(/[/,:]/g, '').replace(/[ ]/g, '_');
+	const outputPath = path.join(workspaceRoot, `${directoryName}_${timestamp}.zip`);
+	const output = fs.createWriteStream(outputPath);
 
-    output.on('close', () => {
-        vscode.window.showInformationMessage(`Compression completed. Archive size: ${archive.pointer()} bytes`);
-    });
+	const archive = archiver('zip', {
+		zlib: { level: 9 }
+	});
 
-    archive.on('error', (err: any) => {
-        vscode.window.showErrorMessage(`Compression error: ${err.message}`);
-    });
+	output.on('close', () => {
+		const sizeInBytes = archive.pointer();
+		let sizeString =getSizeString(sizeInBytes);
+		vscode.window.showInformationMessage(
+			localize('compress.completed', outputPath, sizeString),
+			localize('compress.openFolder', 'Open Folder')
+		).then(selection => {
+			if (selection === localize('compress.openFolder', 'Open Folder')) {
+				vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(outputPath));
+			}
+		});
+	});
 
-    archive.pipe(output);
+	archive.on('error', (err: any) => {
+		vscode.window.showErrorMessage(localize('compress.error', err.message));
+	});
 
-    // 添加选中的文件和文件夹到压缩包
-    for (const item of selectedItems) {
-        const relativePath = path.relative(workspaceRoot, item.fsPath);
-        const stat = await fs.promises.stat(item.fsPath);
-        if (stat.isDirectory()) {
-            archive.directory(item.fsPath, relativePath);
-        } else {
-            archive.file(item.fsPath, { name: relativePath });
-        }
-    }
+	archive.pipe(output);
 
-    await archive.finalize(); // 完成压缩
+	async function addFilesToArchive(dir: string) {
+		const entries = await fs.promises.readdir(dir, { withFileTypes: true });
+		for (const entry of entries) {
+			const fullPath = path.join(dir, entry.name);
+
+			if (regex && regex.test(entry.name)) {
+
+				continue;
+			}
+
+			if (entry.isDirectory()) {
+				await addFilesToArchive(fullPath);
+			} else {
+				archive.file(fullPath, { name: path.relative(workspaceRoot, fullPath) });
+			}
+		}
+	}
+
+	await addFilesToArchive(workspaceRoot);
+	await archive.finalize();
 }
 
 export function activate(context: vscode.ExtensionContext) {
-	console.log('Congratulations, your extension "vs-ex-compress" is now active!');
-
+	init(context.extensionPath);
 	const treeDataProvider = new RecentFilesTreeDataProvider();
 	const treeView = vscode.window.createTreeView('recentFiles', {
 		treeDataProvider,
 		canSelectMany: true // 启用多选功能
 	});
+
+	// 监听文件系统更改事件
+	const fileSystemWatcher = vscode.workspace.createFileSystemWatcher('**/*');
+	fileSystemWatcher.onDidChange(() => treeDataProvider.throttledRefresh());
+	fileSystemWatcher.onDidCreate(() => treeDataProvider.throttledRefresh());
+	fileSystemWatcher.onDidDelete(() => treeDataProvider.throttledRefresh());
 
 	const disposableRefresh = vscode.commands.registerCommand('vs-ex-compress.refreshRecentFiles', () => {
 		treeDataProvider.refresh();
@@ -157,31 +232,37 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 		const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
-		await compressDirectory(workspaceRoot); 
+		await compressDirectoryWithIgnore(workspaceRoot);
 	});
 
 	// 在 activate 函数中注册新命令
 	const disposableCompressSelected = vscode.commands.registerCommand('vs-ex-compress.compressSelectedItems', async () => {
-	    if (!vscode.workspace.workspaceFolders) {
-	        vscode.window.showErrorMessage('No workspace is open.');
-	        return;
-	    }
+		if (!vscode.workspace.workspaceFolders) {
+			vscode.window.showErrorMessage('No workspace is open.');
+			return;
+		}
 
-	    // 获取当前选中的 TreeItem
-	    const selectedItems = [...treeView.selection]; // 将 readonly Uri[] 转换为普通数组
-	    if (selectedItems.length === 0) {
-	        vscode.window.showErrorMessage('No files or folders selected for compression.');
-	        return;
-	    }
+		// 获取当前选中的 TreeItem
+		const selectedItems = [...treeView.selection]; // 将 readonly Uri[] 转换为普通数组
+		if (selectedItems.length === 0) {
+			vscode.window.showErrorMessage('No files or folders selected for compression.');
+			return;
+		}
 
-	    const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
-	    await compressSelectedItems(selectedItems, workspaceRoot);
+		const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
+		await compressSelectedItems(selectedItems, workspaceRoot);
 	});
+
+	const disposableOpenSettings = vscode.commands.registerCommand('vs-ex-compress.openSettings', () => {
+		vscode.commands.executeCommand('workbench.action.openSettings', 'compress');
+	});
+	context.subscriptions.push(disposableOpenSettings);
 
 	context.subscriptions.push(disposableRefresh);
 	context.subscriptions.push(disposableCompress);
 	context.subscriptions.push(disposableCompressSelected);
 	context.subscriptions.push(treeView);
+	context.subscriptions.push(fileSystemWatcher);
 }
 
 export function deactivate() { }

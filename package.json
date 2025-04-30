@@ -1,8 +1,11 @@
 {
   "name": "vs-ex-compress",
   "displayName": "vs-ex-compress",
-  "description": "",
-  "version": "0.0.1",
+  "version": "0.1.1",
+  "publisher": "waslong",
+  "license": "MIT",
+  "repository": "",
+  "icon": "media/logo.png",
   "engines": {
     "vscode": "^1.99.0"
   },
@@ -16,40 +19,53 @@
       "explorer": [
         {
           "id": "recentFiles",
-          "name": "Recent Modified Files",
+          "name": "%recentFiles%",
           "when": "workspaceFolderCount > 0"
         }
       ]
     },
     "configuration": {
       "type": "object",
-      "title": "vs-ex-compress"
+      "title": "%compressSettings%",
+      "properties": {
+        "compress.m01.ignore": {
+          "type": "string",
+          "default": ".*\\.(zip|rar|scss|less|map)$|\\.vscode$|node_modules",
+          "description": "%compress.ignore%"
+        }
+      }
     },
     "commands": [
       {
         "command": "vs-ex-compress.refreshRecentFiles",
-        "title": "Refresh Recent Files"
+        "title": "%compress.refreshRecentFiles%"
       },
       {
         "command": "vs-ex-compress.compressDirectory",
-        "title": "Compress Current Directory",
-        "icon": "$(package)"
+        "title": "%compress.compressDirectory%",
+        "icon": "media/zip1.svg"
       },
       {
         "command": "vs-ex-compress.compressSelectedItems",
-        "title": "Compress Selected Items",
-        "icon": "$(checklist)"
+        "title": "%compress.compressSelectedItems%",
+        "icon": "media/zip2.svg"
+      },
+      {
+        "command": "vs-ex-compress.openSettings",
+        "title": "%compress.openSettings%"
       }
     ],
     "menus": {
+      "view/item/context": [
+        {
+          "command": "vs-ex-compress.compressSelectedItems",
+          "group": "navigation",
+          "when": "view == 'recentFiles'"
+        }
+      ],
       "view/title": [
         {
           "command": "vs-ex-compress.compressDirectory",
-          "group": "navigation",
-          "when": "view == 'recentFiles'"
-        },
-        {
-          "command": "vs-ex-compress.compressSelectedItems",
           "group": "navigation",
           "when": "view == 'recentFiles'"
         }
@@ -58,7 +74,7 @@
     "viewsWelcome": [
       {
         "view": "recentFiles",
-        "contents": "No recent files found. Open a workspace to see recent files."
+        "contents": "%viewsWelcome.noRecentFiles%"
       }
     ]
   },
@@ -71,7 +87,9 @@
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "yarn run compile-tests && yarn run compile && yarn run lint",
     "lint": "eslint src",
-    "test": "vscode-test"
+    "test": "vscode-test",
+    "vb": "vsce package",
+    "vp": "vsce publish"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.8",
@@ -90,5 +108,8 @@
   "dependencies": {
     "archiver": "^7.0.1",
     "vscode-nls-i18n": "^0.2.4"
+  },
+  "vscode-nls-i18n": {
+    "defaultLanguage": "zh-cn"
   }
 }
