@@ -30,7 +30,7 @@
       "properties": {
         "compress.m01.ignore": {
           "type": "string",
-          "default": ".*\\.(zip|rar|scss|less|map)$|\\.vscode$|node_modules",
+          "default": ".*\\.(zip|rar|scss|less|map)$|\\.vscode$|node_modules|\\.git$|\\.svn$|\\.hg$|\\.idea$|\\.DS_Store$|\\.vscode-test$|\\.history$|\\.history\\..*",
           "description": "%compress.ignore%"
         }
       }
