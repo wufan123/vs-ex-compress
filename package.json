@@ -88,6 +88,7 @@
     "pretest": "yarn run compile-tests && yarn run compile && yarn run lint",
     "lint": "eslint src",
     "test": "vscode-test",
+    "push": "git push origin && git push github",
     "vb": "vsce package",
     "vp": "vsce publish"
   },
