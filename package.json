@@ -4,7 +4,7 @@
   "version": "0.1.1",
   "publisher": "waslong",
   "license": "MIT",
-  "repository": "",
+  "repository": "https://github.com/wufan123/vs-ex-compress",
   "icon": "media/logo.png",
   "engines": {
     "vscode": "^1.99.0"
