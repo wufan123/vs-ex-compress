@@ -2,7 +2,7 @@
 
 ## Features
 
-`easy compress` is a VS Code extension designed to help users quickly compress files and folders. Below are the main features of the extension:
+`vs-ex-compress` is a VS Code extension designed to help users quickly compress files and folders. Below are the main features of the extension:
 
 ### 1. Recent Modified Files View
 - Displays recently modified files in the Explorer.
