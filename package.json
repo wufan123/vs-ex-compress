@@ -90,7 +90,7 @@
     "test": "vscode-test",
     "push": "git push origin && git push github",
     "vb": "vsce package",
-    "vp": "vsce publish"
+    "vp": "git push github && vsce publish"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.8",
