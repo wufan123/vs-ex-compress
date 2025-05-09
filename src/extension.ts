@@ -236,19 +236,17 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 
 	// 在 activate 函数中注册新命令
-	const disposableCompressSelected = vscode.commands.registerCommand('vs-ex-compress.compressSelectedItems', async () => {
+	const disposableCompressSelected = vscode.commands.registerCommand('vs-ex-compress.compressSelectedItems', async (item) => {
 		if (!vscode.workspace.workspaceFolders) {
 			vscode.window.showErrorMessage('No workspace is open.');
 			return;
 		}
 
 		// 获取当前选中的 TreeItem
-		const selectedItems = [...treeView.selection]; // 将 readonly Uri[] 转换为普通数组
-		if (selectedItems.length === 0) {
-			vscode.window.showErrorMessage('No files or folders selected for compression.');
-			return;
+		let selectedItems = [...treeView.selection]; // 将 readonly Uri[] 转换为普通数组
+		if (selectedItems.length <= 0) {
+			selectedItems = [item];
 		}
-
 		const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
 		await compressSelectedItems(selectedItems, workspaceRoot);
 	});
