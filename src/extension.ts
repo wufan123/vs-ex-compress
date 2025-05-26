@@ -38,9 +38,15 @@ class RecentFilesTreeDataProvider implements vscode.TreeDataProvider<vscode.Uri>
 		try {
 			const stat = await fs.promises.stat(element.fsPath);
 			const mtime = new Date(stat.mtimeMs);
-			const today = new Date();
-			if (mtime.toDateString() === today.toDateString()) {
+			const now = new Date();
+			const diffMs = now.getTime() - mtime.getTime();
+			const diffDays = diffMs / (1000 * 60 * 60 * 24);
+			if (mtime.toDateString() === now.toDateString()) {
 				treeItem.description = ` \u21BB ${mtime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+			} else if (diffDays < 3) {
+				treeItem.description = localize('recentFiles.within3days'); 
+			} else if (diffDays < 7) {
+				treeItem.description = localize('recentFiles.within7days');
 			}
 		} catch (error) {
 			console.error(`Error getting file stats for ${element.fsPath}:`, error);
@@ -105,7 +111,7 @@ async function compressSelectedItems(selectedItems: vscode.Uri[], workspaceRoot:
 
 	output.on('close', () => {
 		const sizeInBytes = archive.pointer();
-		let sizeString =getSizeString(sizeInBytes);
+		let sizeString = getSizeString(sizeInBytes);
 		vscode.window.showInformationMessage(
 			localize('compress.completed', outputPath, sizeString),
 			localize('compress.openFolder', 'Open Folder')
@@ -169,7 +175,7 @@ async function compressDirectoryWithIgnore(workspaceRoot: string) {
 
 	output.on('close', () => {
 		const sizeInBytes = archive.pointer();
-		let sizeString =getSizeString(sizeInBytes);
+		let sizeString = getSizeString(sizeInBytes);
 		vscode.window.showInformationMessage(
 			localize('compress.completed', outputPath, sizeString),
 			localize('compress.openFolder', 'Open Folder')
