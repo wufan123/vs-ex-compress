@@ -43,10 +43,8 @@ class RecentFilesTreeDataProvider implements vscode.TreeDataProvider<vscode.Uri>
 			const diffDays = diffMs / (1000 * 60 * 60 * 24);
 			if (mtime.toDateString() === now.toDateString()) {
 				treeItem.description = ` \u21BB ${mtime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
-			} else if (diffDays < 3) {
-				treeItem.description = localize('recentFiles.within3days'); 
 			} else if (diffDays < 7) {
-				treeItem.description = localize('recentFiles.within7days');
+				treeItem.description = ` \u21BB ${mtime.toLocaleDateString([], { month: '2-digit', day: '2-digit'})}`;
 			}
 		} catch (error) {
 			console.error(`Error getting file stats for ${element.fsPath}:`, error);

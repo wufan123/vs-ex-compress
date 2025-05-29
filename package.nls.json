@@ -9,7 +9,5 @@
   "compress.error": "Compression error: {0}",
   "compress.openFolder": "Open Folder",
   "compress.openSettings": "Open Compress Settings",
-  "viewsWelcome.noRecentFiles": "No recent files found. Open a workspace to see recent files.",
-  "recentFiles.within3days": " \u21BB Within 3 days",
-  "recentFiles.within7days": " \u21BB Within 1 week"
+  "viewsWelcome.noRecentFiles": "No recent files found. Open a workspace to see recent files."
 }

@@ -9,7 +9,5 @@
   "compress.error": "压缩错误：{0}",
   "compress.openFolder": "打开文件夹",
   "compress.openSettings": "打开压缩设置",
-  "viewsWelcome.noRecentFiles": "未找到最近的文件。打开工作区以查看最近的文件。",
-  "recentFiles.within3days": " \u21BB 3天内",
-  "recentFiles.within7days": " \u21BB 一周内"
+  "viewsWelcome.noRecentFiles": "未找到最近的文件。打开工作区以查看最近的文件。"
 }
