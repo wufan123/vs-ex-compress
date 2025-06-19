@@ -20,7 +20,7 @@
         {
           "id": "recentFiles",
           "name": "%recentFiles%",
-          "when": "workspaceFolderCount > 0"
+          "when": "workspaceFolderCount > 0 && !vs-ex-compress.hideRecentFiles"
         }
       ]
     },

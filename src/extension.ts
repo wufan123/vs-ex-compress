@@ -44,7 +44,7 @@ class RecentFilesTreeDataProvider implements vscode.TreeDataProvider<vscode.Uri>
 			if (mtime.toDateString() === now.toDateString()) {
 				treeItem.description = ` \u21BB ${mtime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
 			} else if (diffDays < 7) {
-				treeItem.description = ` \u21BB ${mtime.toLocaleDateString([], { month: '2-digit', day: '2-digit'})}`;
+				treeItem.description = ` \u21BB ${mtime.toLocaleDateString([], { month: '2-digit', day: '2-digit' })}`;
 			}
 		} catch (error) {
 			console.error(`Error getting file stats for ${element.fsPath}:`, error);
@@ -213,6 +213,16 @@ async function compressDirectoryWithIgnore(workspaceRoot: string) {
 }
 
 export function activate(context: vscode.ExtensionContext) {
+	// 检查是否安装并启用了 waslong.vs-ex-ftp 插件
+	const ftpExt = vscode.extensions.getExtension('waslong.vs-ex-ftp');
+	if (ftpExt && ftpExt.isActive) {
+		// 动态隐藏 recentFiles 视图
+		vscode.commands.executeCommand('setContext', 'vs-ex-compress.hideRecentFiles', true);
+		return;
+	} else {
+		vscode.commands.executeCommand('setContext', 'vs-ex-compress.hideRecentFiles', false);
+	}
+
 	init(context.extensionPath);
 	const treeDataProvider = new RecentFilesTreeDataProvider();
 	const treeView = vscode.window.createTreeView('recentFiles', {
